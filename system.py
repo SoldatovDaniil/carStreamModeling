@@ -1,7 +1,7 @@
 import streamModeling
 
 # Класс реализующий работу одного потока
-class streamService:
+class StreamService:
     
     def __init__(self, inputStream : streamModeling.InputStreamModeling, queue : list, serviceIntensity : list, servicedCount = 0, estMean = 0, estVar = 0):
         self.inputStream = inputStream # Входной поток
@@ -126,32 +126,37 @@ class streamService:
         print(self.q)
 
 # Класс реализующий работу системы
-class system:
+class System:
     def __init__(self, Lam : list, Type : list, R : list, G : list,
                  Queues : list, ServiceIntensity : list,
                  Nstop, T : list, Qmax = 1000, EPS = 1): 
         self.is1 =  streamModeling.InputStreamModeling(Lam[0], Type[0], R[0], G[0]) # Входной поток 1
         self.is2 =  streamModeling.InputStreamModeling(Lam[1], Type[1], R[1], G[1]) # Входной поток 1
-        self.s1 =  streamService(self.is1, Queues[0], ServiceIntensity[0]) # Поток 1
-        self.s2 =  streamService(self.is2, Queues[1], ServiceIntensity[1]) # Поток 2
+        self.s1 =  StreamService(self.is1, Queues[0], ServiceIntensity[0]) # Поток 1
+        self.s2 =  StreamService(self.is2, Queues[1], ServiceIntensity[1]) # Поток 2
         self.Nstop = Nstop # Максимальное количество обслуженных машин
         self.T = T # Массив времён с длительностями состояний 
         self.EPS = EPS # Параметр для расчёта оценок
         self.Qmax = Qmax # Максимальное значение машин в очереди
     
+    def setNstop(self, newNstop):
+        self.Nstop = newNstop
+     
     def proccessing(self): # Моделирование работы системы
         totalN1 = 0
         totalN2 = 0
         cycleCount = 0
-        Flag = True
+        flag = True
         while totalN1 < self.Nstop or totalN2 < self.Nstop: 
             for i in range(len(self.T)):
-                if len(self.s1.getQ()) > self.Qmax or len(self.s2.getQ()) > self.Qmax:
-                    n1, g1, s1 = self.s1.getRes()
-                    n2, g2, s2 = self.s2.getRes()
+                if len(self.s1.getQ()) > self.Qmax or len(self.s2.getQ()) > self.Qmax: # Отсутствие стационара
+                    inCars1, n1, g1, s1 = self.s1.getRes()
+                    inCars2, n2, g2, s2 = self.s2.getRes()
                     totalN1 += n1
                     totalN2 += n2
-                    return g1, g2, s1, s2, cycleCount, totalN1, totalN2
+                    flag = False
+                    return g1, g2, s1, s2, cycleCount, totalN1, totalN2, inCars1, inCars2, flag
+                
                 if i == 0:
                     self.s1.servicePhase(self.T[i], 1)
                     self.s2.noServicePhase(self.T[i])
@@ -176,13 +181,3 @@ class system:
             
         return g1, g2, s1, s2, cycleCount, totalN1, totalN2, inCars1, inCars2
 
-Lambda = [0.6, 0.6]
-Type = ['bartlet', 'bartlet']
-R = [0.5, 0.5]
-G = [0.4, 0.4]
-Q = [[], []]
-SI = [[1, 2], [1, 2]]
-Nst = 10000
-StateTime= [15, 3, 3, 15, 3, 3]
-testSys = system(Lambda, Type, R, G, Q, SI, Nst, StateTime)
-print(testSys.proccessing())
