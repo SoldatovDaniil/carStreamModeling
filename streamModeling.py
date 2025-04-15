@@ -1,6 +1,6 @@
 import modeling
 
-
+#Клас моделирующий входной поток
 class InputStreamModeling:
 
     def __init__(self, lam, type = 'poisson', r = 0, g = 0):

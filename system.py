@@ -129,20 +129,25 @@ class StreamService:
 class System:
     def __init__(self, Lam : list, Type : list, R : list, G : list,
                  Queues : list, ServiceIntensity : list,
-                 Nstop, T : list, Qmax = 1000, EPS = 1): 
+                 Nstop, T : list, Qmax = 1000): 
         self.is1 =  streamModeling.InputStreamModeling(Lam[0], Type[0], R[0], G[0]) # Входной поток 1
         self.is2 =  streamModeling.InputStreamModeling(Lam[1], Type[1], R[1], G[1]) # Входной поток 1
         self.s1 =  StreamService(self.is1, Queues[0], ServiceIntensity[0]) # Поток 1
         self.s2 =  StreamService(self.is2, Queues[1], ServiceIntensity[1]) # Поток 2
         self.Nstop = Nstop # Максимальное количество обслуженных машин
         self.T = T # Массив времён с длительностями состояний 
-        self.EPS = EPS # Параметр для расчёта оценок
         self.Qmax = Qmax # Максимальное значение машин в очереди
     
     def setNstop(self, newNstop):
         self.Nstop = newNstop
-     
-    def proccessing(self): # Моделирование работы системы
+    
+    def getNstop(self):
+        return self.Nstop
+    
+    def getQ(self):
+        return len(self.s1.getQ()), len(self.s2.getQ())
+    
+    def processing(self): # Моделирование работы системы
         totalN1 = 0
         totalN2 = 0
         cycleCount = 0
@@ -179,5 +184,5 @@ class System:
             totalN2 = n2
             cycleCount += 1
             
-        return g1, g2, s1, s2, cycleCount, totalN1, totalN2, inCars1, inCars2
+        return g1, g2, s1, s2, cycleCount, totalN1, totalN2, inCars1, inCars2, self.getQ(), flag
 

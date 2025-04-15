@@ -3,7 +3,6 @@ import random
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-
 # Поток Пуассона
 # Функция моделированния Пуассоновской случайной велечины
 def PoissonRandomVariable(lam, t):
