@@ -154,13 +154,13 @@ class System:
         flag = True
         while totalN1 < self.Nstop or totalN2 < self.Nstop: 
             for i in range(len(self.T)):
-                if len(self.s1.getQ()) > self.Qmax or len(self.s2.getQ()) > self.Qmax: # Отсутствие стационара
+                if len(self.s1.getQ()) > self.Qmax or len(self.s2.getQ()) > self.Qmax: #Отсутствие стационара
                     inCars1, n1, g1, s1 = self.s1.getRes()
                     inCars2, n2, g2, s2 = self.s2.getRes()
-                    totalN1 += n1
-                    totalN2 += n2
+                    totalN1 = n1
+                    totalN2 = n2
                     flag = False
-                    return g1, g2, s1, s2, cycleCount, totalN1, totalN2, inCars1, inCars2, flag
+                    return g1, g2, s1, s2, cycleCount, totalN1, totalN2, inCars1, inCars2, self.getQ(), flag
                 
                 if i == 0:
                     self.s1.servicePhase(self.T[i], 1)
