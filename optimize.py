@@ -112,14 +112,18 @@ R = [0.6, 0.6]
 G = [0.3, 0.3]
 Q = [[], []]
 SI = [[1, 2], [1, 2]]
+NumberOfServiceStates = [[1, 2], [4, 5]]
 Nst = 1000
 StateTime= [25, 1, 1, 1, 1, 1]
 MaxSumTimeOfStates = 50
 Eps = 1
 StepTime = 1
-testSys = system.System(Lambda, Type, R, G, Q, SI, Nst, StateTime)
+testSys = system.System(Lambda, Type, R, G, Q, SI, NumberOfServiceStates, Nst, StateTime)
 
-g1 = []
+#gamma, grid, T1, T4, systemInfo = optimizer([Lambda, Type, R, G, Q, SI, NumberOfServiceStates, Nst], [25, 26], [15, 40], StateTime, StepTime, Eps, MaxSumTimeOfStates)
+#visualisationResults(gamma, systemInfo, T1, T4)
+
+'''g1 = []
 g2 = []
 ques = []
 time = []
@@ -133,16 +137,11 @@ for t in range(10, 150):
     g2.append(systemInfo[1])
 
 plt.plot(time, g1, color='red')
-#plt.plot(time, g2, color='green')
+plt.plot(time, g2, color='green')
 plt.show()
 
 q1 = [q[0] for q in ques]
 q2 = [q[1] for q in ques]
 plt.plot(time, q1, color='red')
 plt.plot(time, q2, color='green')
-plt.show()
-#gamma, grid, T1, T4, systemInfo = optimizer([Lambda, Type, R, G, Q, SI, Nst], [25, 26], [15, 40], StateTime, StepTime, Eps, MaxSumTimeOfStates)
-#visualisationResults(gamma, systemInfo, T1, T4)
-
-
-
+plt.show()'''
