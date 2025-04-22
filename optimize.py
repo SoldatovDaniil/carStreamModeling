@@ -119,7 +119,7 @@ MaxSumTimeOfStates = 50
 Eps = 1
 StepTime = 1
 testSys = system.System(Lambda, Type, R, G, Q, SI, NumberOfServiceStates, Nst, StateTime)
-
+print(testSys.processing())
 #gamma, grid, T1, T4, systemInfo = optimizer([Lambda, Type, R, G, Q, SI, NumberOfServiceStates, Nst], [25, 26], [15, 40], StateTime, StepTime, Eps, MaxSumTimeOfStates)
 #visualisationResults(gamma, systemInfo, T1, T4)
 
@@ -130,18 +130,18 @@ time = []
 for t in range(10, 150):
     StateTime[0] = t
     time.append(t)
-    sys = system.System(Lambda, Type, R, G, Q, SI, Nst, StateTime)
+    sys = system.System(Lambda, Type, R, G, Q, SI, NumberOfServiceStates, Nst, StateTime)
     systemInfo = systemWork(sys)
     ques.append(systemInfo[-2])
     g1.append(systemInfo[0])
     g2.append(systemInfo[1])
 
 plt.plot(time, g1, color='red')
-plt.plot(time, g2, color='green')
+#plt.plot(time, g2, color='green')
 plt.show()
 
 q1 = [q[0] for q in ques]
 q2 = [q[1] for q in ques]
 plt.plot(time, q1, color='red')
-plt.plot(time, q2, color='green')
+#plt.plot(time, q2, color='green')
 plt.show()'''
