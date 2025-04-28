@@ -12,7 +12,7 @@ class StreamService:
         self.n = servicedCount # Количество обслуженных машин
         self.inputCarsCount = 0 # Количество поступивших машин
         self.numbersOfServiceStates = numbersOfServiceStates # Номера фаз обслуживания
-        self.intensity1, self.intensity2 = serviceIntensity # Интенсивность обслуживания зелёный свет и мигающий зелёный(время на проезд 1 машины т.е. 1/nu)
+        self.intensity1, self.intensity2 = serviceIntensity # Интенсивность обслуживания зелёный свет и мигающий зелёный(время на проезд 1 машины т.е. 1/mu)
         self.g = estMean # Оценка среднего времени задержки машины в системе
         self.s = estVar # Оценка дисперсии среднего времени задержки машины в системе
 
@@ -37,10 +37,13 @@ class StreamService:
     def addNewApp(self, stateTime, moments, systemTime, sys): # Добавление новых заявок в очередь
         if len(self.q) == 0:
             self.q.append([systemTime + moments[0], stateTime - moments[0]])
+            self.queueChanges.append([self.q[-1][0], len(self.q)])
         else:
             self.q.append([systemTime + moments[0], (self.q[-1][0] + self.q[-1][1] + self.searchIntensity(*sys.searchState(self.q[-1][0] + self.q[-1][1]))) - (systemTime + moments[0])])
+            self.queueChanges.append([self.q[-1][0], len(self.q)])
         for i in range(1, len(moments)):
             self.q.append([systemTime + moments[i], (self.q[-1][0] + self.q[-1][1] + self.searchIntensity(*sys.searchState(self.q[-1][0] + self.q[-1][1]))) - (systemTime + moments[i])])
+            self.queueChanges.append([self.q[-1][0], len(self.q)])
 
     def noServicePhase(self, stateTime, systemTime, sys): # Фаза без обслуживания
         moments = self.inputStream.inputStreamModeling(stateTime)
@@ -54,6 +57,7 @@ class StreamService:
             self.g = (self.g * self.n + self.q[i][1]) / (self.n + 1)
             self.s = (self.s * self.n + self.q[i][1] ** 2) / (self.n + 1)
             self.n += 1
+            self.queueChanges.append([self.q[i][0] + self.q[i][1], len(self.q) - i - 1])
         if maxServedCount == len(self.q):
             self.q = []
         else:
@@ -62,29 +66,31 @@ class StreamService:
         if len(moments) > 0:
             self.addNewApp(time, moments, systemTime, sys)
 
-    def secondCase(self, time, moments, maxServedCount, intensity, systemTime): # Случай второй - обслужаться все из очереди и вновь пришедшие
-        for i in range(len(self.q)):
+    def secondCase(self, time, moments, maxServedCount, intensity, systemTime): # Случай второй - обслужаться все из очереди и все вновь пришедшие
+        qN = len(self.q)
+        for i in range(qN):
             qi = self.q[i][1]
             self.g = (self.g * self.n + qi) / (self.n + 1)
             self.s = (self.s * self.n + qi ** 2) / (self.n + 1)
             self.n += 1
+            self.queueChanges.append([self.q[i][0] + self.q[i][1], len(self.q) - i - 1])
+        l = qN * intensity
         self.q = []
-        l = maxServedCount * intensity
         for i in range(len(moments)):
             if moments[i] >= l and time - moments[i] > intensity:
                 l = moments[i] + intensity
-                qi = intensity
+                qi = 0
                 self.g = (self.g * self.n + qi) / (self.n + 1)
                 self.s = (self.s * self.n + qi ** 2) / (self.n + 1)
                 self.n += 1
-            elif time - moments[i] > intensity:
-                qi = l - moments[i] + intensity
+            elif moments[i] < l and time - moments[i] > intensity:
+                qi = l - moments[i]
                 l += intensity
                 self.g = (self.g * self.n + qi) / (self.n + 1)
                 self.s = (self.s * self.n + qi ** 2) / (self.n + 1)
                 self.n += 1
-            else:
-                qi = intensity
+            elif time - moments[i] <= intensity:
+                qi = 0
                 self.g = (self.g * self.n + qi) / (self.n + 1)
                 self.s = (self.s * self.n + qi ** 2) / (self.n + 1)
                 self.n += 1
@@ -96,23 +102,24 @@ class StreamService:
             self.g = (self.g * self.n + qi) / (self.n + 1)
             self.s = (self.s * self.n + qi ** 2) / (self.n + 1)
             self.n += 1
+            self.queueChanges.append([self.q[i][0] + self.q[i][1], len(self.q) - i - 1])
+        l = qN * intensity
         self.q = []
-        l = maxServedCount * intensity
         for i in range(maxServedCount - qN):
             if moments[i] >= l and time - moments[i] > intensity:
                 l = moments[i] + intensity
-                qi = intensity
+                qi = 0
                 self.g = (self.g * self.n + qi) / (self.n + 1)
                 self.s = (self.s * self.n + qi ** 2) / (self.n + 1)
                 self.n += 1
-            elif time - moments[i] > intensity:
-                qi = l - moments[i] + intensity
+            elif moments[i] < l and time - moments[i] > intensity:
+                qi = l - moments[i]
                 l += intensity
                 self.g = (self.g * self.n + qi) / (self.n + 1)
                 self.s = (self.s * self.n + qi ** 2) / (self.n + 1)
                 self.n += 1
-            else:
-                qi = intensity
+            elif time - moments[i] <= intensity:
+                qi = 0
                 self.g = (self.g * self.n + qi) / (self.n + 1)
                 self.s = (self.s * self.n + qi ** 2) / (self.n + 1)
                 self.n += 1
@@ -124,7 +131,7 @@ class StreamService:
             intensity = self.intensity1
         else:
             intensity = self.intensity2
-        maxServedCount = stateTime // intensity
+        maxServedCount = int(stateTime // intensity)
         moments = self.inputStream.inputStreamModeling(stateTime)
         self.inputCarsCount += len(moments)
         if len(self.q) >= maxServedCount:
@@ -143,6 +150,9 @@ class StreamService:
     
     def getLenQ(self): # Получение длины очереди
         return len(self.q) 
+    
+    def getQChanges(self): # Получение изменений очереди
+        return self.queueChanges
     
     def printQueue(self): # Вывод очереди
         print(self.q)
@@ -168,6 +178,9 @@ class System:
     
     def getQ(self):
         return len(self.s1.getQ()), len(self.s2.getQ())
+    
+    def getSystemQChanges(self):
+        return self.s1.getQChanges(), self.s2.getQChanges()
     
     def searchState(self, time):
         time %= sum(self.T)
@@ -218,4 +231,6 @@ class System:
             cycleCount += 1
             
         return g1, g2, s1, s2, cycleCount, totalN1, totalN2, inCars1, inCars2, self.getQ(), flag
+
+
 

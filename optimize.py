@@ -7,19 +7,26 @@ from matplotlib import pyplot as plt
 def systemWork(sys : system.System, EPS = 1):
     gammaPrev1 = 0
     gammaPrev2 = 0
+    sPrev1 = 0
+    sPrev2 = 0
+    sNext1 = -10
+    sNext2 = -10
     gammaNext1 = -10
     gammaNext2 = -10
     EpochsCounter = 0
-    while abs(gammaPrev1 - gammaNext1) > EPS and abs(gammaPrev2 - gammaNext2) > EPS:
+    while (abs(gammaPrev1 - gammaNext1) > EPS and abs(gammaPrev2 - gammaNext2) > EPS) \
+        and (abs(sPrev1 - sNext1) > EPS and abs(sPrev2 - sNext2) > EPS):
         gammaPrev1, gammaPrev2 = gammaNext1, gammaNext2
+        sPrev1, sPrev2 = sNext1, sNext2
         systemInfo = sys.processing()
         gammaNext1, gammaNext2 = systemInfo[0], systemInfo[1]
+        sNext1, sNext2 = systemInfo[2], systemInfo[3]
         EpochsCounter += 1
         if systemInfo[-1] == False:
-            #print("Нет стационара")
+            print("Нет стационара", end=' ')
             return systemInfo
-        sys.setNstop = sys.getNstop() * 2
-        #print(f"Эпох пройдено: {EpochsCounter}", end=' ')
+        sys.setNstop(sys.getNstop() * 2)
+    print(f"Эпох пройдено: {EpochsCounter}", f"Количесвто обслужанных машин: {sys.getNstop()}", end=' ')
     return systemInfo
 
 
@@ -106,22 +113,32 @@ def visualisationResults(gamma, systemInfo, T1, T4):
     dfG2.to_csv('G2.csv')
     return
 
-Lambda = [0.2, 0.2]
+Lambda = [0.3, 0.3]
 Type = ['poisson', 'poisson']
 R = [0.6, 0.6]
 G = [0.3, 0.3]
 Q = [[], []]
-SI = [[1, 2], [1, 2]]
+SI = [[1, 0.5], [1, 0.5]]
 NumberOfServiceStates = [[1, 2], [4, 5]]
 Nst = 1000
-StateTime= [25, 1, 1, 1, 1, 1]
-MaxSumTimeOfStates = 50
+StateTime= [15, 3, 3, 15, 3, 3]
+MaxSumTimeOfStates = 90
 Eps = 1
 StepTime = 1
-testSys = system.System(Lambda, Type, R, G, Q, SI, NumberOfServiceStates, Nst, StateTime)
-print(testSys.processing())
-#gamma, grid, T1, T4, systemInfo = optimizer([Lambda, Type, R, G, Q, SI, NumberOfServiceStates, Nst], [25, 26], [15, 40], StateTime, StepTime, Eps, MaxSumTimeOfStates)
-#visualisationResults(gamma, systemInfo, T1, T4)
+#testSys = system.System(Lambda, Type, R, G, Q, SI, NumberOfServiceStates, Nst, StateTime)
+#print(testSys.processing())
+#print(systemWork(testSys))
+gamma, grid, T1, T4, systemInfo = optimizer([Lambda, Type, R, G, Q, SI, NumberOfServiceStates, Nst], [29, 30], [29, 30], StateTime, StepTime, Eps, MaxSumTimeOfStates)
+visualisationResults(gamma, systemInfo, T1, T4)
+
+'''qChanges = testSys.getSystemQChanges()
+TimeMoments1 = [q[0] for q in qChanges[0]]
+Q1 = [q[1] for q in qChanges[0]]
+TimeMoments2 = [q[0] for q in qChanges[1]]
+Q2 = [q[1] for q in qChanges[1]]
+
+plt.plot(TimeMoments1, Q1)
+plt.show()'''
 
 '''g1 = []
 g2 = []
