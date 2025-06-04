@@ -168,11 +168,11 @@ MaxSumTimeOfStates = 90
 Eps = 1
 StepTime = 1
 FlagForS = True # Проверять ли близость оценок дисперсий(False - да, True - нет)
-testSys = system.System(Lambda, Type, R, G, Q, SI, NumberOfServiceStates, Nst, StateTime)
-print(testSys.processing())
+#testSys = system.System(Lambda, Type, R, G, Q, SI, NumberOfServiceStates, Nst, StateTime)
+#print(testSys.processing())
 #systemWork(testSys, FlagForS)
 #visualisationDynamics(testSys.getSystemDynamics(), testSys.getTimeArray())
-#gamma, grid, T1, T4, systemInfo = optimizer([Lambda, Type, R, G, Q, SI, NumberOfServiceStates, Nst], [5, 10], [5, 10], StateTime, FlagForS, StepTime, Eps, MaxSumTimeOfStates)
+gamma, grid, T1, T4, systemInfo = optimizer([Lambda, Type, R, G, Q, SI, NumberOfServiceStates, Nst], [5, 10], [5, 10], StateTime, FlagForS, StepTime, Eps, MaxSumTimeOfStates)
 #visualisationResults(gamma, systemInfo, T1, T4)
 
 '''qChanges = testSys.getSystemQChanges()
