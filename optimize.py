@@ -2,9 +2,10 @@ import system
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
+import sys
 
 
-def systemWork(sys : system.System, EPS = 1):
+def systemWork(sys : system.System, flagForS = True, EPS = 1):
     gammaPrev1 = 0
     gammaPrev2 = 0
     sPrev1 = 0
@@ -14,8 +15,8 @@ def systemWork(sys : system.System, EPS = 1):
     gammaNext1 = -10
     gammaNext2 = -10
     EpochsCounter = 0
-    while (abs(gammaPrev1 - gammaNext1) > EPS and abs(gammaPrev2 - gammaNext2) > EPS) \
-        and (abs(sPrev1 - sNext1) > EPS and abs(sPrev2 - sNext2) > EPS):
+    while (abs(gammaPrev1 - gammaNext1) > EPS or abs(gammaPrev2 - gammaNext2) > EPS) \
+        and ((abs(sPrev1 - sNext1) > EPS or abs(sPrev2 - sNext2) > EPS) or flagForS):
         gammaPrev1, gammaPrev2 = gammaNext1, gammaNext2
         sPrev1, sPrev2 = sNext1, sNext2
         systemInfo = sys.processing()
@@ -23,14 +24,30 @@ def systemWork(sys : system.System, EPS = 1):
         sNext1, sNext2 = systemInfo[2], systemInfo[3]
         EpochsCounter += 1
         if systemInfo[-1] == False:
-            print("Нет стационара", end=' ')
+            print("Нет стационара")
             return systemInfo
-        sys.setNstop(sys.getNstop() * 2)
-    print(f"Эпох пройдено: {EpochsCounter}", f"Количесвто обслужанных машин: {sys.getNstop()}", end=' ')
+        sys.setNstop(sys.getNstop() + 1000)
+        #print(gammaNext1, gammaNext2, sNext1, sNext2)
+    print(f"Эпох пройдено = {EpochsCounter}", f"Порог количества обслужанных машин = {sys.getNstop() - 1000}")
+    printSysteminfo(systemInfo)
     return systemInfo
 
 
-def optimizer(systemParams, T1Bounds, T4Bounds, stateTime, step = 1, EPS = 1, MaxSumTime = 100):
+def printSysteminfo(info):
+    valuesNames = ["gamma1", "gamma2", "s1", "s2", "Количество циклов", "Количество обслуженных машин 1-го потока", 
+                "2-го потока", "Количество поступивших машин 1-го потока", "2-го потока", "Конечные очереди"]
+    counter = 0
+    if info[-1] == False:
+        print("Нет стационара")
+    for vn, value in zip(valuesNames, info[:-1]):
+        print(f"{vn} = {value} ", end=' ')
+        counter += 1
+        if counter == 4 or counter == 5 or counter == 7 or counter == 9:
+            print()
+    print()
+
+
+def optimizer(systemParams, T1Bounds, T4Bounds, stateTime, flagS, step = 1, EPS = 1, MaxSumTime = 100):
     T1Array = np.arange(T1Bounds[0], T1Bounds[1], step)
     T4Array = np.arange(T4Bounds[0], T4Bounds[1], step)
     gamma = []
@@ -43,18 +60,22 @@ def optimizer(systemParams, T1Bounds, T4Bounds, stateTime, step = 1, EPS = 1, Ma
                 gamma.append((None, None))
                 systemInfoArray.append(None)
                 continue
+
+            iterCounter += 1
+            print("-" * 20)
+            print(f"Точка {iterCounter} из {len(T1Array) * len(T4Array)} Параметры: T1 = {T1}, T4 = {T4}") 
+            
             stateTime[0] = T1
             stateTime[3] = T4
             sys = system.System(*systemParams, stateTime)
-            systemInfo = systemWork(sys, EPS)
+            systemInfo = systemWork(sys, flagS, EPS)
             systemInfoArray.append(systemInfo)
             if systemInfo[-1] == False:
                 gamma.append((None, None))
             else:
                 gamma.append((systemInfo[0], systemInfo[1]))
             grid.append((T1, T4))
-            iterCounter += 1
-            print(f"Точка {iterCounter} из {len(T1Array) * len(T4Array)}") 
+
     return gamma, grid, T1Array, T4Array, systemInfoArray
 
 
@@ -111,25 +132,48 @@ def visualisationResults(gamma, systemInfo, T1, T4):
     dfQ2.to_csv('Q2.csv')
     dfG1.to_csv('G1.csv')
     dfG2.to_csv('G2.csv')
-    return
 
-Lambda = [0.3, 0.3]
+
+def visualisationDynamics(systemDynamic, t):
+    dynG, dynS = systemDynamic
+    dynG1 = [dG[0] for dG in dynG]
+    dynG2 = [dG[1] for dG in dynG]
+    dynS1 = [dS[0] for dS in dynS]
+    dynS2 = [dS[1] for dS in dynS]
+
+    fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(16, 8))
+
+    axes[0].plot(t, dynG1, label='g1', color="red")
+    axes[0].plot(t, dynG2, label='g2', color="blue")
+    axes[0].set_title("Динамика gamma")
+
+    axes[1].plot(t, dynS1, label='s1', color="red")
+    axes[1].plot(t, dynS2, label='s2', color="blue")
+    axes[1].set_title("Динамика s")
+
+    plt.tight_layout()
+    plt.show()
+
+
+Lambda = [0.3, 0.4]
 Type = ['poisson', 'poisson']
-R = [0.6, 0.6]
-G = [0.3, 0.3]
+R = [0.508, 0.546]
+G = [0.508, 0.546]
 Q = [[], []]
 SI = [[1, 0.5], [1, 0.5]]
 NumberOfServiceStates = [[1, 2], [4, 5]]
-Nst = 1000
-StateTime= [15, 3, 3, 15, 3, 3]
+Nst = 15000
+StateTime= [8, 3, 3, 5, 3, 3]
 MaxSumTimeOfStates = 90
 Eps = 1
 StepTime = 1
-#testSys = system.System(Lambda, Type, R, G, Q, SI, NumberOfServiceStates, Nst, StateTime)
-#print(testSys.processing())
-#print(systemWork(testSys))
-gamma, grid, T1, T4, systemInfo = optimizer([Lambda, Type, R, G, Q, SI, NumberOfServiceStates, Nst], [29, 30], [29, 30], StateTime, StepTime, Eps, MaxSumTimeOfStates)
-visualisationResults(gamma, systemInfo, T1, T4)
+FlagForS = True # Проверять ли близость оценок дисперсий(False - да, True - нет)
+testSys = system.System(Lambda, Type, R, G, Q, SI, NumberOfServiceStates, Nst, StateTime)
+print(testSys.processing())
+#systemWork(testSys, FlagForS)
+#visualisationDynamics(testSys.getSystemDynamics(), testSys.getTimeArray())
+#gamma, grid, T1, T4, systemInfo = optimizer([Lambda, Type, R, G, Q, SI, NumberOfServiceStates, Nst], [5, 10], [5, 10], StateTime, FlagForS, StepTime, Eps, MaxSumTimeOfStates)
+#visualisationResults(gamma, systemInfo, T1, T4)
 
 '''qChanges = testSys.getSystemQChanges()
 TimeMoments1 = [q[0] for q in qChanges[0]]

@@ -7,7 +7,7 @@ class StreamService:
                  serviceIntensity : list, numbersOfServiceStates : list, 
                  servicedCount = 0, estMean = 0, estVar = 0):
         self.inputStream = inputStream # Входной поток
-        self.q = queue # Очередь - времена ожидания машин, время их поступления (мемент поступления, время задержки)
+        self.q = queue.copy() # Очередь - времена ожидания машин, время их поступления (мемент поступления, время задержки)
         self.queueChanges = [] # Массив для отслеживания изменений очередей (момент времени, длина очереди)
         self.n = servicedCount # Количество обслуженных машин
         self.inputCarsCount = 0 # Количество поступивших машин
@@ -45,12 +45,14 @@ class StreamService:
             self.q.append([systemTime + moments[i], (self.q[-1][0] + self.q[-1][1] + self.searchIntensity(*sys.searchState(self.q[-1][0] + self.q[-1][1]))) - (systemTime + moments[i])])
             self.queueChanges.append([self.q[-1][0], len(self.q)])
 
-    def noServicePhase(self, stateTime, systemTime, sys): # Фаза без обслуживания
+    def noServicePhase(self, stateTime, sys): # Фаза без обслуживания
+        if stateTime == 0:
+            return
         moments = self.inputStream.inputStreamModeling(stateTime)
         self.inputCarsCount += len(moments)
         self.addWaitTime(stateTime)
         if len(moments) > 0:
-            self.addNewApp(stateTime, moments, systemTime, sys)
+            self.addNewApp(stateTime, moments, sys.getSystemTime(), sys)
 
     def firstCase(self, time, moments, maxServedCount, systemTime, sys): # Случай первый - очередь больше, чем можно обслужить
         for i in range(maxServedCount):
@@ -126,7 +128,9 @@ class StreamService:
         if len(moments) > 0:
             self.addNewApp(time, moments[(maxServedCount - qN):], systemTime, sys)
         
-    def servicePhase(self, stateTime, numServicePhase, systemTime, sys): # Фаза обслуживания
+    def servicePhase(self, stateTime, numServicePhase, sys): # Фаза обслуживания
+        if stateTime == 0:
+            return
         if numServicePhase == 1:
             intensity = self.intensity1
         else:
@@ -135,16 +139,22 @@ class StreamService:
         moments = self.inputStream.inputStreamModeling(stateTime)
         self.inputCarsCount += len(moments)
         if len(self.q) >= maxServedCount:
-            self.firstCase(stateTime, moments, maxServedCount, systemTime, sys)
+            self.firstCase(stateTime, moments, maxServedCount, sys.getSystemTime(), sys)
         elif len(moments) <= maxServedCount - len(self.q):
-            self.secondCase(stateTime, moments, maxServedCount, intensity, systemTime)
+            self.secondCase(stateTime, moments, maxServedCount, intensity, sys.getSystemTime())
         elif len(moments) > maxServedCount - len(self.q):
-            self.thirdCase(stateTime, moments, maxServedCount, intensity, systemTime, sys)
+            self.thirdCase(stateTime, moments, maxServedCount, intensity, sys.getSystemTime(), sys)
     
     def getRes(self): # Получение результатов
         resS = self.s - self.g ** 2
         return self.inputCarsCount, self.n, self.g, resS
 
+    def getG(self): # Получение средних задержек 
+        return self.g
+    
+    def getS(self): # Получение дисперсии задержек 
+        return self.s - self.g ** 2
+    
     def getQ(self): # Получение очереди
         return self.q
     
@@ -154,6 +164,9 @@ class StreamService:
     def getQChanges(self): # Получение изменений очереди
         return self.queueChanges
     
+    def getN(self): # Получение количества осблуженных машин
+        return self.n
+    
     def printQueue(self): # Вывод очереди
         print(self.q)
 
@@ -161,7 +174,7 @@ class StreamService:
 class System:
     def __init__(self, Lam : list, Type : list, R : list, G : list,
                  Queues : list, ServiceIntensity : list, NumbersOfServiceStates : list,
-                 Nstop, T : list, Qmax = 1000): 
+                 Nstop, T : list, Qmax = 1000, systemTime = 0): 
         self.is1 =  streamModeling.InputStreamModeling(Lam[0], Type[0], R[0], G[0]) # Входной поток 1
         self.is2 =  streamModeling.InputStreamModeling(Lam[1], Type[1], R[1], G[1]) # Входной поток 1
         self.s1 =  StreamService(self.is1, Queues[0], ServiceIntensity[0], NumbersOfServiceStates[0]) # Поток 1
@@ -169,6 +182,10 @@ class System:
         self.Nstop = Nstop # Максимальное количество обслуженных машин
         self.T = T # Массив времён с длительностями состояний 
         self.Qmax = Qmax # Максимальное значение машин в очереди
+        self.systemTime = systemTime # Время начала текущей фазы обслуживания
+        self.gDynamic = [(0, 0)] # Изменения gamma
+        self.sDynamic = [(0, 0)] # Изменения s
+        self.timeArray = [0] 
     
     def setNstop(self, newNstop):
         self.Nstop = newNstop
@@ -177,10 +194,13 @@ class System:
         return self.Nstop
     
     def getQ(self):
-        return len(self.s1.getQ()), len(self.s2.getQ())
+        return self.s1.getLenQ(), self.s2.getLenQ()
     
     def getSystemQChanges(self):
         return self.s1.getQChanges(), self.s2.getQChanges()
+    
+    def getSystemDynamics(self):
+        return self.gDynamic, self.sDynamic
     
     def searchState(self, time):
         time %= sum(self.T)
@@ -189,48 +209,51 @@ class System:
                 return i + 1, sum(self.T[:i+1]) - time
             else:
                 return 1, self.T[0] - time
-        
-    def processing(self): # Моделирование работы системы
-        totalN1 = 0
-        totalN2 = 0
+    
+    def getSystemTime(self):
+        return self.systemTime
+    
+    def getTimeArray(self):
+        return self.timeArray
+    
+    def processing(self): # Моделирование работы системы(До обслуживания заданного количества машиин)
         cycleCount = 0
-        systemTime = 0 # Время начала текущей фазы обслуживания
         flag = True
-        while totalN1 < self.Nstop or totalN2 < self.Nstop: 
+        while self.s1.getN() < self.Nstop and self.s2.getN() < self.Nstop: 
             for i in range(len(self.T)):
                 if len(self.s1.getQ()) > self.Qmax or len(self.s2.getQ()) > self.Qmax: # Отсутствие стационара
                     inCars1, n1, g1, s1 = self.s1.getRes()
                     inCars2, n2, g2, s2 = self.s2.getRes()
-                    totalN1 = n1
-                    totalN2 = n2
                     flag = False
-                    return g1, g2, s1, s2, cycleCount, totalN1, totalN2, inCars1, inCars2, self.getQ(), flag
+                    return g1, g2, s1, s2, cycleCount, n1, n2, inCars1, inCars2, self.getQ(), flag
                 
                 if i == 0:
-                    self.s1.servicePhase(self.T[i], 1, systemTime, self)
-                    self.s2.noServicePhase(self.T[i], systemTime, self)
+                    self.s1.servicePhase(self.T[i], 1, self)
+                    self.s2.noServicePhase(self.T[i], self)
                 elif i == 1:
-                    self.s1.servicePhase(self.T[i], 2, systemTime, self)
-                    self.s2.noServicePhase(self.T[i], systemTime, self)
+                    self.s1.servicePhase(self.T[i], 2, self)
+                    self.s2.noServicePhase(self.T[i], self)
                 elif i == 2 or i == 5:
-                    self.s1.noServicePhase(self.T[i], systemTime, self)
-                    self.s2.noServicePhase(self.T[i], systemTime, self)
+                    self.s1.noServicePhase(self.T[i], self)
+                    self.s2.noServicePhase(self.T[i], self)
                 elif i == 3:
-                    self.s1.noServicePhase(self.T[i], systemTime, self)
-                    self.s2.servicePhase(self.T[i], 1, systemTime, self)
+                    self.s1.noServicePhase(self.T[i], self)
+                    self.s2.servicePhase(self.T[i], 1, self)
                 elif i == 4:
-                    self.s1.noServicePhase(self.T[i], systemTime, self)
-                    self.s2.servicePhase(self.T[i], 2, systemTime, self)
+                    self.s1.noServicePhase(self.T[i], self)
+                    self.s2.servicePhase(self.T[i], 2, self)
                 
-                systemTime += self.T[i]
-                
+                self.gDynamic.append((self.s1.getG(), self.s2.getG()))
+                self.sDynamic.append((self.s1.getS(), self.s2.getS()))
+                self.systemTime += self.T[i]
+                self.timeArray.append(self.systemTime)
+
             inCars1, n1, g1, s1 = self.s1.getRes()
             inCars2, n2, g2, s2 = self.s2.getRes()
-            totalN1 = n1
-            totalN2 = n2
+            #print(cycleCount + 1, ' ', g1, g2, s1, s2)
             cycleCount += 1
             
-        return g1, g2, s1, s2, cycleCount, totalN1, totalN2, inCars1, inCars2, self.getQ(), flag
+        return g1, g2, s1, s2, cycleCount, n1, n2, inCars1, inCars2, self.getQ(), flag
 
 
 
