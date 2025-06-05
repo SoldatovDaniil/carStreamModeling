@@ -37,13 +37,11 @@ class StreamService:
     def addNewApp(self, stateTime, moments, systemTime, sys): # Добавление новых заявок в очередь
         if len(self.q) == 0:
             self.q.append([systemTime + moments[0], stateTime - moments[0]])
-            self.queueChanges.append([self.q[-1][0], len(self.q)])
         else:
             self.q.append([systemTime + moments[0], (self.q[-1][0] + self.q[-1][1] + self.searchIntensity(*sys.searchState(self.q[-1][0] + self.q[-1][1]))) - (systemTime + moments[0])])
-            self.queueChanges.append([self.q[-1][0], len(self.q)])
         for i in range(1, len(moments)):
             self.q.append([systemTime + moments[i], (self.q[-1][0] + self.q[-1][1] + self.searchIntensity(*sys.searchState(self.q[-1][0] + self.q[-1][1]))) - (systemTime + moments[i])])
-            self.queueChanges.append([self.q[-1][0], len(self.q)])
+            
 
     def noServicePhase(self, stateTime, sys): # Фаза без обслуживания
         if stateTime == 0:
@@ -53,13 +51,16 @@ class StreamService:
         self.addWaitTime(stateTime)
         if len(moments) > 0:
             self.addNewApp(stateTime, moments, sys.getSystemTime(), sys)
+        if self.getLenQ() == 0:
+            self.queueChanges.append([sys.getSystemTime() + stateTime, 0])
+        else:
+            self.queueChanges.append([self.q[-1][0], len(self.q)])
 
     def firstCase(self, time, moments, maxServedCount, systemTime, sys): # Случай первый - очередь больше, чем можно обслужить
         for i in range(maxServedCount):
             self.g = (self.g * self.n + self.q[i][1]) / (self.n + 1)
             self.s = (self.s * self.n + self.q[i][1] ** 2) / (self.n + 1)
             self.n += 1
-            self.queueChanges.append([self.q[i][0] + self.q[i][1], len(self.q) - i - 1])
         if maxServedCount == len(self.q):
             self.q = []
         else:
@@ -67,6 +68,10 @@ class StreamService:
         self.addWaitTime(time)
         if len(moments) > 0:
             self.addNewApp(time, moments, systemTime, sys)
+        if self.getLenQ() == 0:
+            self.queueChanges.append([systemTime + time, 0])
+        else:
+            self.queueChanges.append([self.q[-1][0], len(self.q)])
 
     def secondCase(self, time, moments, maxServedCount, intensity, systemTime): # Случай второй - обслужаться все из очереди и все вновь пришедшие
         qN = len(self.q)
@@ -75,7 +80,6 @@ class StreamService:
             self.g = (self.g * self.n + qi) / (self.n + 1)
             self.s = (self.s * self.n + qi ** 2) / (self.n + 1)
             self.n += 1
-            self.queueChanges.append([self.q[i][0] + self.q[i][1], len(self.q) - i - 1])
         l = qN * intensity
         self.q = []
         for i in range(len(moments)):
@@ -96,6 +100,11 @@ class StreamService:
                 self.g = (self.g * self.n + qi) / (self.n + 1)
                 self.s = (self.s * self.n + qi ** 2) / (self.n + 1)
                 self.n += 1
+        if self.getLenQ() == 0:
+            self.queueChanges.append([systemTime + time, 0])
+        else:
+            self.queueChanges.append([self.q[-1][0], len(self.q)])
+        
     
     def thirdCase(self, time, moments, maxServedCount, intensity, systemTime, sys): # Случай третий - обслужаться все из очереди, но не все пришедшие 
         qN = len(self.q)
@@ -104,7 +113,6 @@ class StreamService:
             self.g = (self.g * self.n + qi) / (self.n + 1)
             self.s = (self.s * self.n + qi ** 2) / (self.n + 1)
             self.n += 1
-            self.queueChanges.append([self.q[i][0] + self.q[i][1], len(self.q) - i - 1])
         l = qN * intensity
         self.q = []
         for i in range(maxServedCount - qN):
@@ -127,6 +135,10 @@ class StreamService:
                 self.n += 1
         if len(moments) > 0:
             self.addNewApp(time, moments[(maxServedCount - qN):], systemTime, sys)
+        if self.getLenQ() == 0:
+            self.queueChanges.append([systemTime + time, 0])
+        else:
+            self.queueChanges.append([self.q[-1][0], len(self.q)])
         
     def servicePhase(self, stateTime, numServicePhase, sys): # Фаза обслуживания
         if stateTime == 0:
@@ -174,7 +186,7 @@ class StreamService:
 class System:
     def __init__(self, Lam : list, Type : list, R : list, G : list,
                  Queues : list, ServiceIntensity : list, NumbersOfServiceStates : list,
-                 Nstop, T : list, Qmax = 1000, systemTime = 0): 
+                 Nstop, T : list, Qmax = 500, systemTime = 0): 
         self.is1 =  streamModeling.InputStreamModeling(Lam[0], Type[0], R[0], G[0]) # Входной поток 1
         self.is2 =  streamModeling.InputStreamModeling(Lam[1], Type[1], R[1], G[1]) # Входной поток 1
         self.s1 =  StreamService(self.is1, Queues[0], ServiceIntensity[0], NumbersOfServiceStates[0]) # Поток 1
