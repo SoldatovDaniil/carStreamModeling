@@ -52,23 +52,33 @@ def printSysteminfo(info):
     return
 
 
-def tableManager(df, areaInd, iterDir, iterName):
+def getTitle(type, r, g, lm):
+    if type == "poisson":
+        resStr = f"$\lambda$1={lm[0]}, $\lambda$2={lm[1]} п. Пуассона"
+    else:
+        resStr = f"$\lambda$1={lm[0]}, $\lambda$2={lm[1]}, r1={r[0]}, r2={r[1]}, g1={g[0]}, g2={g[1]} п. Бартлетта"
+    return resStr
+
+
+def tableManager(df, minIndex, areaInd, noStArea, iterDir, iterName, title):
     os.makedirs(iterDir, exist_ok=True)
 
-    num_rows, num_cols = df.shape
+    n_rows, n_cols = df.shape
     cell_text = []
     for idx, row in df.iterrows():
-        formatted_row = [f"{val:.2f}" for val in row]
-        cell_text.append([idx] + formatted_row)  
-    col_labels = [''] + df.columns.tolist()
-    colors = np.full((num_rows, num_cols + 1), 'white') 
+        formatted_row = [f"{val:.2f}" if val != -1 else "" for val in row]
+        cell_text.append([idx] + formatted_row)
+    col_labels = ['T4\T1'] + df.columns.tolist()
+    colors = np.full((n_rows, n_cols + 1), 'white') 
     colors[0, :] = '#f0f0f0'
     colors[:, 0] = '#f0f0f0'
-
     for ind in areaInd:
-        colors[ind[0], ind[1] + 1] = 'green'
+        colors[ind[0], ind[1] + 1] = '#49f733ff'
+    for ind in noStArea:
+        colors[ind[0], ind[1] + 1] = 'gray'
+    colors[minIndex[0], minIndex[1] + 1] = 'green'
 
-    cell_height = 0.2
+    '''cell_height = 0.2
     cell_width = 0.6   
     fig_width = max(6, num_cols * cell_width)  
     fig_height = max(4, num_rows * cell_height) 
@@ -84,27 +94,69 @@ def tableManager(df, areaInd, iterDir, iterName):
     for i in range(num_rows + 1):
         table[(i, 0)].set_height(0.3)
         for j in range(1, num_cols + 1):
-            table[(i, j)].set_height(0.3)
+            table[(i, j)].set_height(0.3)'''
+    
+    cell_height = max(0.1, min(0.5, 30 / n_rows))  
+    cell_width = max(0.1, min(0.5, 30 / n_cols))   
+    
+    fig_width = cell_width * (n_cols + 2)  
+    fig_height = cell_height * (n_rows + 4) 
+    fig = plt.figure(figsize=(fig_width, fig_height), dpi=100)
+    
+    gs = fig.add_gridspec(2, 1, height_ratios=[1, 10], hspace=0.05)
+    
+    title_ax = fig.add_subplot(gs[0])
+    title_ax.axis('off')
+    title_ax.text(0.5, 0.2, title, ha='center', va='bottom', fontsize=min(16, max(10, 300 / n_cols)), fontweight='bold')
+    
+    ax = fig.add_subplot(111)
+    ax.axis('off')
+
+    table = ax.table(cellText=cell_text, colLabels=col_labels, cellColours=colors.tolist(), loc='center', cellLoc='center')
+
+    font_size = max(6, min(12, 300 / max(n_rows, n_cols)))
+    table.auto_set_font_size(False)
+    table.set_fontsize(font_size)
+    
+    for cell in table._cells.values():
+        cell.set_height(cell_height / fig_height * 0.9)
+        cell.PAD = 0.05
 
     outputPath = os.path.join(iterDir, f"T_{iterName}.png")
-    plt.savefig(outputPath, dpi=300, bbox_inches='tight', pad_inches=0.5)
+    plt.savefig(outputPath, dpi=300, bbox_inches='tight')
     plt.close()
     return
 
 
-def graphicManager(x, y, areaInd, iterDir, iterName):
+def graphicManager(x, y, minIndex, areaInd, noStArea, iterDir, iterName, title):
     os.makedirs(iterDir, exist_ok=True)
     
     xx, yy = np.meshgrid(x, y)
 
-    mask = np.full((len(x), len(y)), False)
+    mask1 = np.full((len(x), len(y)), False)
     for i,j in areaInd:
-        mask[i][j] = True
+        mask1[i][j] = True
+    mask2 = np.full((len(x), len(y)), False)
+    for i,j in noStArea:
+        mask2[i][j] = True
+    mask3 = np.full((len(x), len(y)), False)
+    mask3[minIndex[0], minIndex[1]] = True
 
-    plt.figure(figsize=(8, 6))
-    plt.grid(True, linestyle=':', alpha=0.3, color='gray')
-    plt.scatter(xx, yy, s=500, c='lightblue', alpha=0.7, edgecolors='gray')
-    plt.scatter(xx[mask], yy[mask], s=500, c='red', edgecolors='black')
+    minSize, maxSize = 200, 500
+    numPoints = len(x) * len(y)
+    pointSize = max(minSize, min(maxSize, 10000/numPoints))
+
+    plt.figure(figsize=(15, 15))
+    plt.grid(True, linestyle=':', alpha=0.4, color='gray')
+    plt.xticks(x)
+    plt.yticks(y)
+    plt.xlabel("T1")
+    plt.ylabel("T4")
+    plt.title(f"График средне взешанных оценок при:\n{title}")
+    plt.scatter(xx, yy, s=pointSize, c='lightblue', alpha=0.7, edgecolors='gray')
+    plt.scatter(xx[mask1], yy[mask1], s=pointSize, c='lightgreen', alpha=0.7, edgecolors='black')
+    plt.scatter(xx[mask3], yy[mask3], s=pointSize, c='green', edgecolors='black')
+    plt.scatter(xx[mask2], yy[mask2], s=pointSize, c='gray', alpha=0.7, edgecolors='black')
 
     outputPath = os.path.join(iterDir, f"GR_{iterName}.png")
     plt.savefig(outputPath, dpi=300, bbox_inches='tight', pad_inches=0.5)
@@ -114,7 +166,7 @@ def graphicManager(x, y, areaInd, iterDir, iterName):
 
 def findOptArea(arr, threshold):
     area = []
-    minInd = np.unravel_index(np.argmin(arr), arr.shape)
+    minInd = np.unravel_index(np.argmin(np.where(np.isnan(arr), np.inf, arr)), arr.shape)
     minVal = arr[minInd[0], minInd[1]]
     mask = arr <= (minVal + threshold)
     inds = np.where(mask)
@@ -122,7 +174,16 @@ def findOptArea(arr, threshold):
     return area, minVal, minInd
 
 
-def visualisationResults(gamma, systemInfo, T1, T4, threshold=1, iterDir="D:\PyProjects\Experiments", iterName="testSave"):
+def findNoStacArea(arr):
+    area = []
+    for i in range(arr.shape[0]):
+        for j in range(arr.shape[1]):  
+            if np.isnan(arr[i, j]):  
+                area.append((i, j))
+    return area
+
+
+def visualisationResults(r, g, lm, gamma, systemInfo, T1, T4, type, threshold=1, iterDir="D:\\Diplom\\Experiments\\", iterName="testSave"):
     '''queque1 = [q[-2][0] if q != None else np.nan for q in systemInfo]
     queque1 = np.array(queque1).reshape((len(T4), len(T1)))
 
@@ -135,17 +196,18 @@ def visualisationResults(gamma, systemInfo, T1, T4, threshold=1, iterDir="D:\PyP
     gammaWeight = []
     #gamma1 = []
     #gamma2 = []
-    for g in gamma:
-        if None in g:
+    for ga in gamma:
+        if None in ga:
             gammaWeight.append(np.nan)
             #gamma1.append(np.nan)
             #gamma2.append(np.nan)
         else:
-            gammaWeight.append((Lambda[0] * g[0] + Lambda[1] * g[1]) / (Lambda[0] + Lambda[1]))
+            gammaWeight.append((lm[0] * ga[0] + lm[1] * ga[1]) / (lm[0] + lm[1]))
             #gamma1.append(g[0])
             #gamma2.append(g[1])
 
     gammaWeight = np.array(gammaWeight).reshape((len(T4), len(T1)))
+    noStacArea = findNoStacArea(gammaWeight)
     optAreaIndexes, minG, minGIndex = findOptArea(gammaWeight, threshold)
     #gamma1 = np.array(gamma1).reshape((len(T4), len(T1)))
     #gamma2 = np.array(gamma2).reshape((len(T4), len(T1)))
@@ -153,9 +215,9 @@ def visualisationResults(gamma, systemInfo, T1, T4, threshold=1, iterDir="D:\PyP
     #dfG1 = pd.DataFrame(gamma1, index=T4, columns=T1).fillna(-1)
     #dfG2 = pd.DataFrame(gamma2, index=T4, columns=T1).fillna(-1)
     dfGammaWeight = pd.DataFrame(gammaWeight, index=T4, columns=T1).fillna(-1)
-
-    graphicManager(T4, T1, optAreaIndexes, iterDir, iterName)
-    tableManager(dfGammaWeight, optAreaIndexes, iterDir, iterName)
+    title = getTitle(type, r, g, lm)
+    graphicManager(T4, T1, minGIndex, optAreaIndexes, noStacArea, iterDir, iterName, title)
+    tableManager(dfGammaWeight, minGIndex, optAreaIndexes, noStacArea, iterDir, iterName, title)
 
     #plt.figure(figsize=(8, 4))
     #sns.heatmap(dfGammaWeight, annot=True, fmt=".2f", cmap=["#ADD8E6"], cbar=False,linewidths=0.5, linecolor="black")
@@ -229,7 +291,21 @@ def optimizer(systemParams, T1Bounds, T4Bounds, stateTime, flagS, step = 1, EPS 
     return gamma, grid, T1Array, T4Array, systemInfoArray
 
 
-def experiment(r, g, type, q, si, numberOfServiceStates, nSt, stateTime, maxSumTimeOfState, tBounds1, tBounds2,
+def onePairofLmOptimeze(lm, r, g, type, q, si, numberOfServiceStates, nSt, stateTime, maxSumTimeOfState, tBounds1, tBounds2,
+                       eps=1, timeStep=1, flagForS=True, threshold=1):
+    dir = f"D:\\Diplom\\Experiments\\r1={r[0]}_g1={g[0]}_r2={r[1]}_g2={g[1]}_sec={stateTime[1]}"
+    iterName = f"lm1={lm[0]}_lm2={lm[1]}"
+    resGamma = []
+    resOptT = []
+    print("=" * 20)
+    print(f"Параметры: Lm1 = {lm[1]}, Lm2 = {lm[1]}, r1={r[0]}, r2={r[1]}, g1 = {g[0]}, g2={g[1]}")
+    systemParams = [lm, type, r, g, q, si, numberOfServiceStates, nSt]
+    gamma, grid, T1, T4, systemInfo = optimizer(systemParams, tBounds1, tBounds2, stateTime, flagForS, timeStep, eps, maxSumTimeOfState)
+    MinG, MinGInd = visualisationResults(r, g, lm, gamma, systemInfo, T1, T4, type[0], threshold, dir, iterName)
+    return MinG, T1[MinGInd[0]], T4[MinGInd[1]]
+
+
+def BigExperiment(r, g, type, q, si, numberOfServiceStates, nSt, stateTime, maxSumTimeOfState, tBounds1, tBounds2,
                eps=1, timeStep=1, flagForS=True, threshold=1,
                lambdaBounds=[[0.1, 0.6], [0.1, 0.6]], lmstep=0.1):
     iterCount = 0
@@ -237,7 +313,7 @@ def experiment(r, g, type, q, si, numberOfServiceStates, nSt, stateTime, maxSumT
     lmArr2 = np.arange(lambdaBounds[1][0], lambdaBounds[1][1] + lmstep, lmstep)
     lmArr1 = np.round(lmArr1, 2)
     lmArr2 = np.round(lmArr2, 2)
-    dir = f"D:\\PyProjects\\Experiments\\r={r[0]}_g={g[0]}"
+    dir = f"D:\\Diplom\\Experiments\\r1={r[0]}_g1={g[0]}_r2={r[1]}_g2={g[1]}"
     resGamma = []
     resOptT = []
     for lm1 in lmArr1:
@@ -278,35 +354,6 @@ def experiment(r, g, type, q, si, numberOfServiceStates, nSt, stateTime, maxSumT
             table[(i, j)].set_height(0.3)
     outputPath =  f"D:\\PyProjects\\Experiments\\r={r[0]}_g={g[0]}\T1_r={r[0]}_g={g[0]}.png"
     plt.savefig(outputPath, dpi=300, bbox_inches='tight', pad_inches=0.5)
-    '''
-    textT = []
-    for arr in resOptT:
-        text = ' '.join([f'{x:.2f}' for x in arr])
-        textT.append([text])
-    textT = np.array(textT).reshape((len(lmArr2), len(lmArr1)))
-    dfRes = pd.DataFrame(textT, index=lmArr2, columns=lmArr1)
-    num_rows, num_cols = dfRes.shape
-    cell_text = []
-    for idx, row in dfRes.iterrows():
-        formatted_row = [val for val in row]
-        cell_text.append([idx] + formatted_row)
-    col_labels = [''] + dfRes.columns.tolist()
-    cell_height = 0.4
-    cell_width = 2   
-    fig_width = max(6, num_cols * cell_width)  
-    fig_height = max(4, num_rows * cell_height) 
-    fig, ax = plt.subplots(figsize=(fig_width, fig_height))
-    ax.axis('off')
-    font = FontProperties(family='monospace', weight='bold')
-    table = ax.table(cellText=cell_text, colLabels=col_labels, loc='center', cellLoc='center', colWidths=[0.2] + [0.15]*num_cols)
-    table.auto_set_font_size(False)
-    table.set_fontsize(10)
-    for i in range(num_rows + 1):
-        table[(i, 0)].set_height(0.3)
-        for j in range(1, num_cols + 1):
-            table[(i, j)].set_height(0.3)
-    outputPath =  f"D:\\PyProjects\\Experiments\\r={r[0]}_g={g[0]}\T2_r={r[0]}_g={g[0]}.png"
-    plt.savefig(outputPath, dpi=300, bbox_inches='tight', pad_inches=0.5)'''
     plt.close()
 
     newResOptT = []
@@ -323,29 +370,58 @@ def experiment(r, g, type, q, si, numberOfServiceStates, nSt, stateTime, maxSumT
     return resOptT, resGamma
 
 
-Lambda = [0.3, 0.2]
+def sameLmExperiment(lmbda, r, g, type, q, si, numberOfServiceStates, nSt, stateTime, maxSumTimeOfState, tBounds1, tBounds2,
+                       eps=1, timeStep=1, flagForS=True, threshold=1):
+    iterCount = 0
+    for lm in lmbda:
+        iterCount += 1
+        print("+" * 20)
+        onePairofLmOptimeze([lm, lm], r, g, type, q, si, numberOfServiceStates, nSt, stateTime, maxSumTimeOfState, tBounds1, tBounds2, eps, timeStep, flagForS, threshold)
+        print(f"Посчитано {iterCount} из {len(lmbda)}")
+        
+
+Lambda = [0.4, 0.4]
 Type = ['poisson', 'poisson']
-R = [0.508, 0.546]
-G = [0.508, 0.546]
+R = [0.5, 0.5]
+G = [0.5, 0.5]
 Q = [[], []]
 SI = [[1, 0.5], [1, 0.5]]
 NumberOfServiceStates = [[1, 2], [4, 5]]
 Nst = 1000
-StateTime= [60, 3, 3, 10, 3, 3]
+StateTime= [10, 0, 3, 10, 0, 3]
 MaxSumTimeOfStates = 150
-Eps = 1
+Eps = 0.5
 StepTime = 1
-FlagForS = True # Проверять ли близость оценок дисперсий(False - да, True - нет)
+FlagForS = False # Проверять ли близость оценок дисперсий(False - да, True - нет)
 Threshold = 1 # Для построение квазиоптимальной области
+
 #testSys = system.System(Lambda, Type, R, G, Q, SI, NumberOfServiceStates, Nst, StateTime)
 #print(testSys.processing())
+
 #systemWork(testSys, FlagForS)
 #visualisationDynamics(testSys.getSystemDynamics(), testSys.getTimeArray(), testSys.getSystemQChanges())
+
 #gamma, grid, T1, T4, systemInfo = optimizer([Lambda, Type, R, G, Q, SI, NumberOfServiceStates, Nst], [30, 35], [30, 35], StateTime, FlagForS, StepTime, Eps, MaxSumTimeOfStates)
 #visualisationResults(gamma, systemInfo, T1, T4)
 
-experiment(R, G, Type, Q, SI, NumberOfServiceStates, Nst, StateTime, 
-           MaxSumTimeOfStates, [20, 25], [20, 25], Eps, StepTime, FlagForS, Threshold, [[0.1, 0.2], [0.1, 0.2]], 0.1)
+#experiment(R, G, Type, Q, SI, NumberOfServiceStates, Nst, StateTime, 
+#           MaxSumTimeOfStates, [20, 25], [20, 25], Eps, StepTime, FlagForS, Threshold, [[0.1, 0.2], [0.1, 0.2]], 0.1)
+
+onePairofLmOptimeze(Lambda, R, G, Type, Q, SI, NumberOfServiceStates, Nst, StateTime, 
+                   MaxSumTimeOfStates, [3, 50], [3, 50], Eps, StepTime, FlagForS, Threshold)
+
+'''
+x = np.arange(1, 50, 1)
+y = np.arange(1, 50, 1)
+minIndex = [0, 0]
+area_indices = np.random.choice(400, 20, replace=False)  # 20 случайных индексов
+area_indices = [(idx//20, idx%20) for idx in area_indices]
+noStArea = [[0,0]]
+iterDir = "D:\\Diplom\\Experiments\\"
+iterName = "Test"
+title = "123 123"
+graphicManager(x, y, minIndex, area_indices, noStArea, iterDir, iterName, title)
+'''
 
 '''
 g1 = []
