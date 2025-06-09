@@ -107,7 +107,7 @@ def tableManager(df, minIndex, areaInd, noStArea, iterDir, iterName, title):
     
     title_ax = fig.add_subplot(gs[0])
     title_ax.axis('off')
-    title_ax.text(0.5, 0.2, title, ha='center', va='bottom', fontsize=min(16, max(10, 300 / n_cols)), fontweight='bold')
+    title_ax.text(0.5, 0.2, f"Таблица средне взешанных оценок при:\n{title}", ha='center', va='bottom', fontsize=min(16, max(10, 300 / n_cols)), fontweight='bold')
     
     ax = fig.add_subplot(111)
     ax.axis('off')
@@ -142,14 +142,18 @@ def graphicManager(x, y, minIndex, areaInd, noStArea, iterDir, iterName, title):
     mask3 = np.full((len(x), len(y)), False)
     mask3[minIndex[0], minIndex[1]] = True
 
-    minSize, maxSize = 200, 500
+    minSize, maxSize = 150, 500
     numPoints = len(x) * len(y)
     pointSize = max(minSize, min(maxSize, 10000/numPoints))
 
-    plt.figure(figsize=(15, 15))
+    baseFigSize = 10
+    figScale = min(2.0, max(0.5, ((len(x) * len(y))/100)**0.33)) 
+    figSize = baseFigSize * figScale
+
+    plt.figure(figsize=(figSize, figSize))
     plt.grid(True, linestyle=':', alpha=0.4, color='gray')
-    plt.xticks(x)
-    plt.yticks(y)
+    plt.xticks(x, rotation=45)
+    plt.yticks(y, rotation=45)
     plt.xlabel("T1")
     plt.ylabel("T4")
     plt.title(f"График средне взешанных оценок при:\n{title}")
@@ -407,12 +411,12 @@ Threshold = 1 # Для построение квазиоптимальной о�
 #experiment(R, G, Type, Q, SI, NumberOfServiceStates, Nst, StateTime, 
 #           MaxSumTimeOfStates, [20, 25], [20, 25], Eps, StepTime, FlagForS, Threshold, [[0.1, 0.2], [0.1, 0.2]], 0.1)
 
-onePairofLmOptimeze(Lambda, R, G, Type, Q, SI, NumberOfServiceStates, Nst, StateTime, 
-                   MaxSumTimeOfStates, [3, 50], [3, 50], Eps, StepTime, FlagForS, Threshold)
+#onePairofLmOptimeze(Lambda, R, G, Type, Q, SI, NumberOfServiceStates, Nst, StateTime, 
+#                   MaxSumTimeOfStates, [3, 50], [3, 50], Eps, StepTime, FlagForS, Threshold)
 
 '''
-x = np.arange(1, 50, 1)
-y = np.arange(1, 50, 1)
+x = np.arange(1, 70, 1)
+y = np.arange(1, 70, 1)
 minIndex = [0, 0]
 area_indices = np.random.choice(400, 20, replace=False)  # 20 случайных индексов
 area_indices = [(idx//20, idx%20) for idx in area_indices]
