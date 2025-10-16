@@ -77,24 +77,6 @@ def tableManager(df, minIndex, areaInd, noStArea, iterDir, iterName, title):
     for ind in noStArea:
         colors[ind[0], ind[1] + 1] = 'gray'
     colors[minIndex[0], minIndex[1] + 1] = 'green'
-
-    '''cell_height = 0.2
-    cell_width = 0.6   
-    fig_width = max(6, num_cols * cell_width)  
-    fig_height = max(4, num_rows * cell_height) 
-    
-    fig, ax = plt.subplots(figsize=(fig_width, fig_height))
-    ax.axis('off')
-    
-    font = FontProperties(family='monospace', weight='bold')
-
-    table = ax.table(cellText=cell_text, colLabels=col_labels, cellColours=colors.tolist(), loc='center', cellLoc='center', colWidths=[0.2] + [0.15]*num_cols)
-    table.auto_set_font_size(False)
-    table.set_fontsize(16)
-    for i in range(num_rows + 1):
-        table[(i, 0)].set_height(0.3)
-        for j in range(1, num_cols + 1):
-            table[(i, j)].set_height(0.3)'''
     
     cell_height = max(0.1, min(0.5, 30 / n_rows))  
     cell_width = max(0.1, min(0.5, 30 / n_cols))   
@@ -270,8 +252,8 @@ def optimizer(systemParams, T1Bounds, T4Bounds, stateTime, flagS, step = 1, EPS 
     grid = []
     systemInfoArray = []
     iterCounter = 0
-    for T1 in T1Array:
-        for T4 in T4Array:
+    for T4 in T4Array:
+        for T1 in T1Array:
             iterCounter += 1
             print("-" * 20)
             print(f"Точка {iterCounter} из {len(T1Array) * len(T4Array)} Параметры: T1 = {T1}, T4 = {T4}") 
@@ -297,8 +279,8 @@ def optimizer(systemParams, T1Bounds, T4Bounds, stateTime, flagS, step = 1, EPS 
 
 def onePairofLmOptimeze(lm, r, g, type, q, si, numberOfServiceStates, nSt, stateTime, maxSumTimeOfState, tBounds1, tBounds2,
                        eps=1, timeStep=1, flagForS=True, threshold=1):
-    dir = f"D:\\Diplom\\Experiments\\r1={r[0]}_g1={g[0]}_r2={r[1]}_g2={g[1]}_sec={stateTime[1]}"
-    iterName = f"lm1={lm[0]}_lm2={lm[1]}"
+    dir = f"D:\\PyProjects\\Experiments\\Bartlet_M=5_sec={stateTime[1]}"
+    iterName = f"r={r[0]}_g={g[0]}_lm={lm[0]}"
     resGamma = []
     resOptT = []
     print("=" * 20)
@@ -382,23 +364,32 @@ def sameLmExperiment(lmbda, r, g, type, q, si, numberOfServiceStates, nSt, state
         print("+" * 20)
         onePairofLmOptimeze([lm, lm], r, g, type, q, si, numberOfServiceStates, nSt, stateTime, maxSumTimeOfState, tBounds1, tBounds2, eps, timeStep, flagForS, threshold)
         print(f"Посчитано {iterCount} из {len(lmbda)}")
-        
 
-Lambda = [0.4, 0.4]
-Type = ['poisson', 'poisson']
-R = [0.5, 0.5]
-G = [0.5, 0.5]
+
+def bartletParamsOptimizeFixedM(lmbda, rArr, gArr, type, q, si, numberOfServiceStates, nSt, stateTime, maxSumTimeOfState, tBounds1, tBounds2,
+                       eps=1, timeStep=1, flagForS=True, threshold=1):
+    iterCount = 0
+    for r, g in zip(rArr,gArr):
+        iterCount += 1
+        print("+" * 20)
+        onePairofLmOptimeze(lmbda, [r, r], [g, g], type, q, si, numberOfServiceStates, nSt, stateTime, maxSumTimeOfState, tBounds1, tBounds2, eps, timeStep, flagForS, threshold)
+        print(f"Посчитано {iterCount} из {len(rArr)}")
+    
+
+Lambda = [0.6, 0.6]
+Type = ['bartlet', 'bartlet']
+R = [0.05, 0.05]
+G = [0.95, 0.95]
 Q = [[], []]
 SI = [[1, 0.5], [1, 0.5]]
 NumberOfServiceStates = [[1, 2], [4, 5]]
 Nst = 1000
-StateTime= [10, 0, 3, 10, 0, 3]
+StateTime= [10, 3, 3, 10, 3, 3]
 MaxSumTimeOfStates = 150
 Eps = 0.5
 StepTime = 1
 FlagForS = False # Проверять ли близость оценок дисперсий(False - да, True - нет)
 Threshold = 1 # Для построение квазиоптимальной области
-
 #testSys = system.System(Lambda, Type, R, G, Q, SI, NumberOfServiceStates, Nst, StateTime)
 #print(testSys.processing())
 
@@ -411,14 +402,20 @@ Threshold = 1 # Для построение квазиоптимальной о�
 #experiment(R, G, Type, Q, SI, NumberOfServiceStates, Nst, StateTime, 
 #           MaxSumTimeOfStates, [20, 25], [20, 25], Eps, StepTime, FlagForS, Threshold, [[0.1, 0.2], [0.1, 0.2]], 0.1)
 
-#onePairofLmOptimeze(Lambda, R, G, Type, Q, SI, NumberOfServiceStates, Nst, StateTime, 
-#                   MaxSumTimeOfStates, [3, 50], [3, 50], Eps, StepTime, FlagForS, Threshold)
+onePairofLmOptimeze([0.4, 0.4], [0.04, 0.04], [0.99, 0.99], Type, Q, SI, NumberOfServiceStates, Nst, StateTime, 
+                   MaxSumTimeOfStates, [3, 80], [3, 80], Eps, StepTime, FlagForS, Threshold)
+
+#sameLmExperiment([0.1, 0.2, 0.3, 0.4], R, G, Type, Q, SI, NumberOfServiceStates, Nst, StateTime, 
+#                 MaxSumTimeOfStates, [3, 50], [3, 50], Eps, StepTime, FlagForS, Threshold)
+
+#bartletParamsOptimizeFixedM([0.1, 0.1], [0.1, 0.3, 0.5, 0.7, 0.9], [0.9, 0.7, 0.5, 0.3, 0.1], Type, Q, SI, NumberOfServiceStates, Nst, StateTime, 
+#                            MaxSumTimeOfStates, [3, 80], [3, 80], Eps, StepTime, FlagForS, Threshold)
 
 '''
-x = np.arange(1, 70, 1)
-y = np.arange(1, 70, 1)
+x = np.arange(1, 90, 1)
+y = np.arange(1, 90, 1)
 minIndex = [0, 0]
-area_indices = np.random.choice(400, 20, replace=False)  # 20 случайных индексов
+area_indices = np.random.choice(400, 20, replace=False)  
 area_indices = [(idx//20, idx%20) for idx in area_indices]
 noStArea = [[0,0]]
 iterDir = "D:\\Diplom\\Experiments\\"
